@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f0f1a">
+<title>Flow — Task Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #22223a;
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c6af7;
+    --accent2: #f97316;
+    --accent3: #22d3ee;
+    --green: #4ade80;
+    --red: #f87171;
+    --text: #f0f0ff;
+    --muted: rgba(240,240,255,0.45);
+    --radius: 18px;
+    --tab-h: 72px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; overflow:hidden; }
+  
+  /* APP SHELL */
+  #app { display:flex; flex-direction:column; height:100dvh; max-width:430px; margin:0 auto; position:relative; overflow:hidden; }
+  
+  /* HEADER */
+  .header { padding:54px 20px 16px; background:var(--bg); position:relative; z-index:10; }
+  .header-top { display:flex; justify-content:space-between; align-items:center; }
+  .app-title { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; letter-spacing:-0.5px; }
+  .app-title span { color:var(--accent); }
+  .header-date { font-size:13px; color:var(--muted); margin-top:2px; }
+  .notif-btn { width:42px; height:42px; border-radius:12px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; }
+  .notif-dot { position:absolute; top:8px; right:8px; width:8px; height:8px; background:var(--accent2); border-radius:50%; border:2px solid var(--bg); }
+
+  /* SCROLL AREA */
+  .scroll { flex:1; overflow-y:auto; overflow-x:hidden; padding-bottom:calc(var(--tab-h) + 16px); scrollbar-width:none; }
+  .scroll::-webkit-scrollbar { display:none; }
+
+  /* TABS */
+  .tabs { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px; height:var(--tab-h); background:rgba(15,15,26,0.92); backdrop-filter:blur(24px); border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-around; padding:0 8px 8px; z-index:100; }
+  .tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; cursor:pointer; border:none; background:none; color:var(--muted); transition:color .2s; }
+  .tab.active { color:var(--accent); }
+  .tab svg { width:22px; height:22px; }
+  .tab span { font-size:10px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; }
+  .tab-indicator { position:absolute; top:0; left:0; width:25%; height:2px; background:var(--accent); border-radius:0 0 2px 2px; transition:left .3s cubic-bezier(.4,0,.2,1); }
+
+  /* PAGES */
+  .page { display:none; padding:0 20px 8px; }
+  .page.active { display:block; }
+
+  /* SECTION HEADER */
+  .section-head { display:flex; justify-content:space-between; align-items:center; margin:20px 0 12px; }
+  .section-title { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; }
+  .section-action { font-size:13px; color:var(--accent); cursor:pointer; }
+
+  /* STATS ROW */
+  .stats-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; position:relative; overflow:hidden; }
+  .stat-card::before { content:''; position:absolute; inset:0; opacity:.05; border-radius:var(--radius); }
+  .stat-card.purple::before { background:var(--accent); }
+  .stat-card.orange::before { background:var(--accent2); }
+  .stat-card.cyan::before { background:var(--accent3); }
+  .stat-card.green::before { background:var(--green); }
+  .stat-num { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; line-height:1; }
+  .stat-num.purple { color:var(--accent); }
+  .stat-num.orange { color:var(--accent2); }
+  .stat-num.cyan { color:var(--accent3); }
+  .stat-num.green { color:var(--green); }
+  .stat-label { font-size:12px; color:var(--muted); margin-top:4px; }
+  .stat-sub { font-size:11px; color:var(--muted); margin-top:8px; }
+
+  /* PROGRESS BAR */
+  .progress-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:20px; }
+  .progress-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .progress-label { font-size:13px; font-weight:500; }
+  .progress-pct { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:var(--accent); }
+  .progress-bar { height:8px; background:var(--surface2); border-radius:99px; overflow:hidden; }
+  .progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent3)); border-radius:99px; transition:width .6s cubic-bezier(.4,0,.2,1); }
+
+  /* TASK ITEM */
+  .task-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:border-color .2s, transform .15s; position:relative; overflow:hidden; }
+  .task-item:active { transform:scale(0.98); }
+  .task-item.done { opacity:.55; }
+  .task-item.done .task-name { text-decoration:line-through; color:var(--muted); }
+  .task-check { width:22px; height:22px; border-radius:7px; border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:background .2s, border-color .2s; }
+  .task-item.done .task-check { background:var(--green); border-color:var(--green); }
+  .task-info { flex:1; min-width:0; }
+  .task-name { font-size:15px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .task-meta { display:flex; align-items:center; gap:8px; margin-top:3px; }
+  .task-time { font-size:11px; color:var(--muted); }
+  .task-tag { font-size:10px; font-weight:600; padding:2px 7px; border-radius:99px; letter-spacing:0.3px; }
+  .tag-work { background:rgba(124,106,247,.2); color:var(--accent); }
+  .tag-health { background:rgba(74,222,128,.15); color:var(--green); }
+  .tag-personal { background:rgba(249,115,22,.15); color:var(--accent2); }
+  .tag-study { background:rgba(34,211,238,.15); color:var(--accent3); }
+  .task-priority { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .p-high { background:var(--red); }
+  .p-med { background:var(--accent2); }
+  .p-low { background:var(--green); }
+  .task-delete { width:28px; height:28px; border-radius:8px; background:rgba(248,113,113,.1); border:none; color:var(--red); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; opacity:0; transition:opacity .2s; }
+  .task-item:hover .task-delete { opacity:1; }
+
+  /* ADD TASK FAB */
+  .fab { position:fixed; bottom:calc(var(--tab-h) + 16px); right:20px; width:56px; height:56px; border-radius:16px; background:linear-gradient(135deg,var(--accent),var(--accent3)); border:none; color:#fff; font-size:26px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px rgba(124,106,247,.5); z-index:99; transition:transform .15s; }
+  .fab:active { transform:scale(0.92); }
+
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(8px); z-index:200; display:flex; align-items:flex-end; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
+  .modal { background:var(--surface); border-radius:28px 28px 0 0; padding:24px 20px 40px; width:100%; max-width:430px; margin:0 auto; transform:translateY(100%); transition:transform .3s cubic-bezier(.4,0,.2,1); }
+  .modal-overlay.open .modal { transform:translateY(0); }
+  .modal-handle { width:40px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 20px; }
+  .modal-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:700; margin-bottom:20px; }
+  .field { margin-bottom:16px; }
+  .field label { font-size:12px; color:var(--muted); margin-bottom:6px; display:block; text-transform:uppercase; letter-spacing:.5px; }
+  .field input, .field select, .field textarea { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:15px; outline:none; transition:border-color .2s; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--accent); }
+  .field select option { background:var(--surface2); }
+  .field textarea { resize:none; height:80px; }
+  .tag-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .tag-btn { padding:6px 14px; border-radius:99px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; transition:all .2s; }
+  .tag-btn.selected { border-color:var(--accent); color:var(--accent); background:rgba(124,106,247,.1); }
+  .modal-footer { display:flex; gap:12px; margin-top:20px; }
+  .btn { flex:1; padding:14px; border-radius:14px; border:none; font-family:'Syne',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:transform .15s; }
+  .btn:active { transform:scale(.97); }
+  .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent3)); color:#fff; }
+  .btn-ghost { background:var(--surface2); color:var(--muted); }
+
+  /* STREAK */
+  .streak-row { display:flex; gap:6px; margin-bottom:20px; }
+  .streak-day { flex:1; aspect-ratio:1; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--muted); background:var(--surface); border:1px solid var(--border); }
+  .streak-day.done { background:rgba(124,106,247,.25); border-color:var(--accent); color:var(--accent); }
+  .streak-day.today { border-color:var(--accent2); color:var(--accent2); }
+
+  /* REPORTS PAGE */
+  .report-toggle { display:flex; background:var(--surface); border-radius:12px; padding:4px; margin-bottom:20px; }
+  .rtoggle { flex:1; padding:8px; border-radius:9px; border:none; background:transparent; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; cursor:pointer; transition:all .2s; }
+  .rtoggle.active { background:var(--accent); color:#fff; }
+  .chart-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:16px; }
+  .chart-title { font-size:13px; color:var(--muted); margin-bottom:14px; }
+  .bar-chart { display:flex; align-items:flex-end; gap:6px; height:80px; }
+  .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end; }
+  .bar { width:100%; border-radius:6px 6px 0 0; background:linear-gradient(180deg,var(--accent),rgba(124,106,247,.3)); min-height:4px; transition:height .6s cubic-bezier(.4,0,.2,1); }
+  .bar.highlight { background:linear-gradient(180deg,var(--accent3),rgba(34,211,238,.3)); }
+  .bar-label { font-size:9px; color:var(--muted); }
+  .report-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+  .report-card-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; margin-bottom:12px; }
+  .report-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+  .report-row:last-child { border-bottom:none; }
+  .report-row-label { font-size:13px; color:var(--muted); }
+  .report-row-val { font-size:14px; font-weight:600; }
+  .positive { color:var(--green); }
+  .negative { color:var(--red); }
+
+  /* SETTINGS PAGE */
+  .settings-section { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:16px; }
+  .settings-row { display:flex; align-items:center; justify-content:space-between; padding:16px; border-bottom:1px solid var(--border); cursor:pointer; }
+  .settings-row:last-child { border-bottom:none; }
+  .settings-row-left { display:flex; align-items:center; gap:12px; }
+  .settings-icon { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .s-purple { background:rgba(124,106,247,.15); }
+  .s-orange { background:rgba(249,115,22,.15); }
+  .s-cyan { background:rgba(34,211,238,.15); }
+  .s-green { background:rgba(74,222,128,.15); }
+  .s-red { background:rgba(248,113,113,.15); }
+  .settings-label { font-size:15px; font-weight:500; }
+  .settings-sub { font-size:11px; color:var(--muted); margin-top:1px; }
+  .toggle { width:44px; height:26px; background:var(--surface2); border-radius:13px; position:relative; cursor:pointer; transition:background .2s; border:1px solid var(--border); }
+  .toggle.on { background:var(--accent); border-color:var(--accent); }
+  .toggle::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+  .toggle.on::after { transform:translateX(18px); }
+
+  /* TOAST */
+  .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%) translateY(-100px); background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:10px 18px; font-size:13px; font-weight:500; z-index:999; transition:transform .3s cubic-bezier(.4,0,.2,1); white-space:nowrap; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
+
+  /* EMPTY STATE */
+  .empty { text-align:center; padding:40px 20px; color:var(--muted); }
+  .empty-icon { font-size:48px; margin-bottom:12px; }
+  .empty-text { font-size:14px; }
+
+  /* CATEGORY PILLS */
+  .cat-row { display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+  .cat-row::-webkit-scrollbar { display:none; }
+  .cat-pill { padding:6px 16px; border-radius:99px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; white-space:nowrap; transition:all .2s; flex-shrink:0; }
+  .cat-pill.active { border-color:var(--accent); color:var(--accent); background:rgba(124,106,247,.1); }
+
+  /* REMINDER NOTIF */
+  .notif-panel { position:fixed; top:0; left:50%; transform:translateX(-50%) translateY(-100%); width:100%; max-width:430px; background:var(--surface); border-bottom:1px solid var(--border); padding:54px 20px 16px; z-index:300; transition:transform .3s cubic-bezier(.4,0,.2,1); }
+  .notif-panel.open { transform:translateX(-50%) translateY(0); }
+  .notif-panel-title { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; margin-bottom:12px; }
+  .notif-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
+  .notif-item:last-child { border-bottom:none; }
+  .notif-dot2 { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .notif-close { position:absolute; top:54px; right:20px; width:32px; height:32px; border-radius:8px; background:var(--surface2); border:none; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .task-item { animation:fadeIn .25s ease; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="app-title">flow<span>.</span></div>
+        <div class="header-date" id="headerDate"></div>
+      </div>
+      <button class="notif-btn" onclick="toggleNotifPanel()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-dot" id="notifDot"></div>
+      </button>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION PANEL -->
+  <div class="notif-panel" id="notifPanel">
+    <button class="notif-close" onclick="toggleNotifPanel()">✕</button>
+    <div class="notif-panel-title">Reminders</div>
+    <div id="notifList"></div>
+  </div>
+
+  <!-- SCROLL AREA -->
+  <div class="scroll" id="mainScroll">
+
+    <!-- TODAY PAGE -->
+    <div class="page active" id="page-today">
+      <div class="progress-wrap">
+        <div class="progress-top">
+          <div class="progress-label">Today's Progress</div>
+          <div class="progress-pct" id="progPct">0%</div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progFill" style="width:0%"></div></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card purple">
+          <div class="stat-num purple" id="statTotal">0</div>
+          <div class="stat-label">Tasks Today</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-num green" id="statDone">0</div>
+          <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-num orange" id="statPending">0</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card cyan">
+          <div class="stat-num cyan" id="statStreak">0</div>
+          <div class="stat-label">Day Streak 🔥</div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <div class="section-title">This Week</div>
+      </div>
+      <div class="streak-row" id="streakRow"></div>
+
+      <div class="cat-row" id="catRow">
+        <button class="cat-pill active" onclick="filterCat('all',this)">All</button>
+        <button class="cat-pill" onclick="filterCat('work',this)">Work</button>
+        <button class="cat-pill" onclick="filterCat('health',this)">Health</button>
+        <button class="cat-pill" onclick="filterCat('personal',this)">Personal</button>
+        <button class="cat-pill" onclick="filterCat('study',this)">Study</button>
+      </div>
+
+      <div class="section-head">
+        <div class="section-title">Tasks</div>
+        <div class="section-action" onclick="clearDone()">Clear done</div>
+      </div>
+      <div id="taskList"></div>
+    </div>
+
+    <!-- REPORTS PAGE -->
+    <div class="page" id="page-reports">
+      <div class="section-head" style="margin-top:8px">
+        <div class="section-title">Progress Reports</div>
+      </div>
+      <div class="report-toggle">
+        <button class="rtoggle active" onclick="setReport('daily',this)">Daily</button>
+        <button class="rtoggle" onclick="setReport('weekly',this)">Weekly</button>
+        <button class="rtoggle" onclick="setReport('monthly',this)">Monthly</button>
+      </div>
+      <div id="reportContent"></div>
+    </div>
+
+    <!-- REMINDERS PAGE -->
+    <div class="page" id="page-reminders">
+      <div class="section-head" style="margin-top:8px">
+        <div class="section-title">Reminders</div>
+        <div class="section-action" onclick="openReminderModal()">+ Add</div>
+      </div>
+      <div id="reminderList"></div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page" id="page-settings">
+      <div class="section-head" style="margin-top:8px">
+        <div class="section-title">Settings</div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon s-purple">🔔</div>
+            <div>
+              <div class="settings-label">Push Notifications</div>
+              <div class="settings-sub">Task reminders & alerts</div>
+            </div>
+          </div>
+          <div class="toggle on" id="toggle-notif" onclick="toggleSetting('notif')"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon s-orange">🌅</div>
+            <div>
+              <div class="settings-label">Morning Briefing</div>
+              <div class="settings-sub">Daily tasks at 8:00 AM</div>
+            </div>
+          </div>
+          <div class="toggle on" id="toggle-morning" onclick="toggleSetting('morning')"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon s-cyan">🌙</div>
+            <div>
+              <div class="settings-label">Evening Summary</div>
+              <div class="settings-sub">Daily recap at 9:00 PM</div>
+            </div>
+          </div>
+          <div class="toggle on" id="toggle-evening" onclick="toggleSetting('evening')"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon s-green">📊</div>
+            <div>
+              <div class="settings-label">Weekly Reports</div>
+              <div class="settings-sub">Every Sunday at 7:00 PM</div>
+            </div>
+          </div>
+          <div class="toggle on" id="toggle-weekly" onclick="toggleSetting('weekly')"></div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon s-red">🗑️</div>
+            <div>
+              <div class="settings-label">Clear All Data</div>
+              <div class="settings-sub">Reset tasks & history</div>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="color:var(--muted)"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon s-purple">📱</div>
+            <div>
+              <div class="settings-label">Install as App</div>
+              <div class="settings-sub">Add to home screen</div>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="color:var(--muted)"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon s-orange">📤</div>
+            <div>
+              <div class="settings-label">Export Data</div>
+              <div class="settings-sub">Download your tasks as JSON</div>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="color:var(--muted)"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </div>
+
+      <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;">flow. v1.0 · Built for your focus</div>
+    </div>
+
+  </div><!-- /scroll -->
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab-indicator" id="tabIndicator"></div>
+    <button class="tab active" onclick="switchTab('today',0)" id="tab-today">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Today</span>
+    </button>
+    <button class="tab" onclick="switchTab('reports',1)" id="tab-reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>Reports</span>
+    </button>
+    <button class="tab" onclick="switchTab('reminders',2)" id="tab-reminders">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>Reminders</span>
+    </button>
+    <button class="tab" onclick="switchTab('settings',3)" id="tab-settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <span>Settings</span>
+    </button>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" id="fabBtn" onclick="openAddModal()">+</button>
+
+  <!-- ADD TASK MODAL -->
+  <div class="modal-overlay" id="addModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">New Task</div>
+      <div class="field">
+        <label>Task Name</label>
+        <input type="text" id="taskNameInput" placeholder="What needs to be done?">
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="time" id="taskTimeInput">
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <div class="tag-row" id="catSelect">
+          <button class="tag-btn selected" data-cat="work" onclick="selectCat(this)">Work</button>
+          <button class="tag-btn" data-cat="health" onclick="selectCat(this)">Health</button>
+          <button class="tag-btn" data-cat="personal" onclick="selectCat(this)">Personal</button>
+          <button class="tag-btn" data-cat="study" onclick="selectCat(this)">Study</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Priority</label>
+        <select id="taskPriority">
+          <option value="high">🔴 High</option>
+          <option value="med" selected>🟠 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('addModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="addTask()">Add Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REMINDER MODAL -->
+  <div class="modal-overlay" id="reminderModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">New Reminder</div>
+      <div class="field">
+        <label>Reminder Text</label>
+        <input type="text" id="remText" placeholder="e.g. Drink water, Take meds...">
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="time" id="remTime">
+      </div>
+      <div class="field">
+        <label>Repeat</label>
+        <select id="remRepeat">
+          <option value="once">Once</option>
+          <option value="daily" selected>Daily</option>
+          <option value="weekdays">Weekdays</option>
+          <option value="weekends">Weekends</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('reminderModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="addReminder()">Save Reminder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let state = JSON.parse(localStorage.getItem('flow_state') || 'null') || {
+  tasks: [],
+  reminders: [],
+  history: {}, // date -> {total, done}
+  settings: { notif:true, morning:true, evening:true, weekly:true },
+  streak: 0,
+  lastDate: null
+};
+
+let currentCat = 'all';
+let currentReport = 'daily';
+let selectedCat = 'work';
+let notifPanelOpen = false;
+let notificationPermission = false;
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  updateHeaderDate();
+  buildStreakRow();
+  renderTasks();
+  renderStats();
+  renderReminders();
+  renderReport();
+  checkDayReset();
+  requestNotifPermission();
+  scheduleSimulatedReminders();
+  updateTabIndicator(0);
+
+  // Set default time to now
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('taskTimeInput').value = `${h}:${m}`;
+  document.getElementById('remTime').value = `${h}:${m}`;
+}
+
+function save() { localStorage.setItem('flow_state', JSON.stringify(state)); }
+
+// ─── DATE UTILS ───────────────────────────────────────────────────────────────
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+function updateHeaderDate() {
+  const d = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('headerDate').textContent =
+    `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+}
+function checkDayReset() {
+  const today = todayStr();
+  if (state.lastDate && state.lastDate !== today) {
+    // archive yesterday
+    const yTasks = state.tasks.filter(t => !t.date || t.date === state.lastDate);
+    state.history[state.lastDate] = {
+      total: yTasks.length,
+      done: yTasks.filter(t=>t.done).length
+    };
+    // update streak
+    const allDone = yTasks.length > 0 && yTasks.every(t=>t.done);
+    state.streak = allDone ? (state.streak||0)+1 : 0;
+    // clear old done tasks
+    state.tasks = state.tasks.filter(t => !t.done);
+    state.tasks.forEach(t => t.date = today);
+  }
+  state.lastDate = today;
+  save();
+}
+
+// ─── TASKS ────────────────────────────────────────────────────────────────────
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  const today = todayStr();
+  let tasks = state.tasks.filter(t => !t.date || t.date === today);
+  if (currentCat !== 'all') tasks = tasks.filter(t => t.cat === currentCat);
+  
+  if (tasks.length === 0) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">No tasks yet.<br>Tap + to add one!</div></div>`;
+    return;
+  }
+  
+  // Sort: pending first, then done
+  tasks.sort((a,b) => (a.done===b.done ? 0 : a.done ? 1 : -1));
+  
+  list.innerHTML = tasks.map(t => `
+    <div class="task-item ${t.done?'done':''}" id="task-${t.id}" onclick="toggleTask('${t.id}')">
+      <div class="task-check">
+        ${t.done ? `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>` : ''}
+      </div>
+      <div class="task-info">
+        <div class="task-name">${t.name}</div>
+        <div class="task-meta">
+          ${t.time ? `<span class="task-time">⏰ ${formatTime(t.time)}</span>` : ''}
+          <span class="task-tag tag-${t.cat}">${t.cat}</span>
+        </div>
+      </div>
+      <div class="task-priority p-${t.priority}"></div>
+      <button class="task-delete" onclick="deleteTask(event,'${t.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function renderStats() {
+  const today = todayStr();
+  const tasks = state.tasks.filter(t => !t.date || t.date === today);
+  const done = tasks.filter(t=>t.done).length;
+  const total = tasks.length;
+  const pct = total > 0 ? Math.round(done/total*100) : 0;
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statDone').textContent = done;
+  document.getElementById('statPending').textContent = total - done;
+  document.getElementById('statStreak').textContent = state.streak || 0;
+  document.getElementById('progPct').textContent = pct + '%';
+  document.getElementById('progFill').style.width = pct + '%';
+}
+
+function toggleTask(id) {
+  const t = state.tasks.find(t=>t.id===id);
+  if (!t) return;
+  t.done = !t.done;
+  save();
+  renderTasks();
+  renderStats();
+  if (t.done) showToast('✅ Task completed!');
+}
+
+function deleteTask(e, id) {
+  e.stopPropagation();
+  state.tasks = state.tasks.filter(t=>t.id!==id);
+  save();
+  renderTasks();
+  renderStats();
+  showToast('🗑️ Task deleted');
+}
+
+function clearDone() {
+  state.tasks = state.tasks.filter(t=>!t.done);
+  save();
+  renderTasks();
+  renderStats();
+  showToast('✨ Cleared completed tasks');
+}
+
+function addTask() {
+  const name = document.getElementById('taskNameInput').value.trim();
+  if (!name) { showToast('⚠️ Enter a task name'); return; }
+  const task = {
+    id: Date.now().toString(),
+    name,
+    time: document.getElementById('taskTimeInput').value,
+    cat: selectedCat,
+    priority: document.getElementById('taskPriority').value,
+    done: false,
+    date: todayStr()
+  };
+  state.tasks.unshift(task);
+  save();
+  closeModal('addModal');
+  renderTasks();
+  renderStats();
+  scheduleTaskNotification(task);
+  showToast('➕ Task added!');
+  document.getElementById('taskNameInput').value = '';
+}
+
+function filterCat(cat, el) {
+  currentCat = cat;
+  document.querySelectorAll('.cat-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderTasks();
+}
+
+function formatTime(t) {
+  if (!t) return '';
+  const [h,m] = t.split(':');
+  const hr = parseInt(h);
+  return `${hr>12?hr-12:hr||12}:${m} ${hr>=12?'PM':'AM'}`;
+}
+
+// ─── STREAK ROW ───────────────────────────────────────────────────────────────
+function buildStreakRow() {
+  const row = document.getElementById('streakRow');
+  const today = new Date();
+  const days = ['S','M','T','W','T','F','S'];
+  const cells = [];
+  for (let i=6; i>=0; i--) {
+    const d = new Date(today); d.setDate(today.getDate()-i);
+    const ds = d.toISOString().slice(0,10);
+    const isToday = i===0;
+    const hist = state.history[ds];
+    const done = hist ? hist.done===hist.total && hist.total>0 : false;
+    cells.push(`<div class="streak-day ${done?'done':''} ${isToday?'today':''}">${days[d.getDay()]}</div>`);
+  }
+  row.innerHTML = cells.join('');
+}
+
+// ─── REPORTS ──────────────────────────────────────────────────────────────────
+function setReport(type, el) {
+  currentReport = type;
+  document.querySelectorAll('.rtoggle').forEach(r=>r.classList.remove('active'));
+  el.classList.add('active');
+  renderReport();
+}
+
+function renderReport() {
+  const el = document.getElementById('reportContent');
+  const today = new Date();
+  
+  if (currentReport === 'daily') {
+    const todayTasks = state.tasks.filter(t => !t.date || t.date === todayStr());
+    const done = todayTasks.filter(t=>t.done).length;
+    const total = todayTasks.length;
+    const pct = total>0 ? Math.round(done/total*100) : 0;
+    
+    // Last 7 days bar chart
+    const bars = [];
+    const labels = [];
+    for (let i=6;i>=0;i--) {
+      const d = new Date(today); d.setDate(today.getDate()-i);
+      const ds = d.toISOString().slice(0,10);
+      const hist = state.history[ds] || {total:0,done:0};
+      const pct2 = hist.total>0 ? Math.round(hist.done/hist.total*100) : (i===0 ? pct : 0);
+      bars.push(pct2);
+      labels.push(['S','M','T','W','T','F','S'][d.getDay()]);
+    }
+    const maxBar = Math.max(...bars, 1);
+    
+    el.innerHTML = `
+      <div class="chart-wrap">
+        <div class="chart-title">Completion Rate — Last 7 Days</div>
+        <div class="bar-chart">
+          ${bars.map((b,i)=>`
+            <div class="bar-col">
+              <div class="bar ${i===6?'highlight':''}" style="height:${Math.round(b/maxBar*100)}%"></div>
+              <div class="bar-label">${labels[i]}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="report-card">
+        <div class="report-card-title">📅 Today's Summary</div>
+        <div class="report-row"><span class="report-row-label">Tasks Created</span><span class="report-row-val">${total}</span></div>
+        <div class="report-row"><span class="report-row-label">Completed</span><span class="report-row-val positive">${done}</span></div>
+        <div class="report-row"><span class="report-row-label">Pending</span><span class="report-row-val ${total-done>0?'negative':'positive'}">${total-done}</span></div>
+        <div class="report-row"><span class="report-row-label">Completion Rate</span><span class="report-row-val ${pct>=70?'positive':pct>=40?'':'negative'}">${pct}%</span></div>
+        <div class="report-row"><span class="report-row-label">Current Streak</span><span class="report-row-val positive">🔥 ${state.streak||0} days</span></div>
+      </div>
+      <div class="report-card">
+        <div class="report-card-title">🏷️ By Category</div>
+        ${['work','health','personal','study'].map(cat => {
+          const catTasks = todayTasks.filter(t=>t.cat===cat);
+          const catDone = catTasks.filter(t=>t.done).length;
+          return catTasks.length > 0 ? `<div class="report-row"><span class="report-row-label">${cat.charAt(0).toUpperCase()+cat.slice(1)}</span><span class="report-row-val">${catDone}/${catTasks.length}</span></div>` : '';
+        }).join('')}
+      </div>
+    `;
+  } else if (currentReport === 'weekly') {
+    const weekData = [];
+    let weekTotal=0, weekDone=0;
+    for (let i=6;i>=0;i--) {
+      const d = new Date(today); d.setDate(today.getDate()-i);
+      const ds = d.toISOString().slice(0,10);
+      const hist = state.history[ds] || {total:0,done:0};
+      if (ds === todayStr()) {
+        const todayT = state.tasks.filter(t=>!t.date||t.date===ds);
+        hist.total = todayT.length;
+        hist.done = todayT.filter(t=>t.done).length;
+      }
+      weekData.push({...hist, day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]});
+      weekTotal += hist.total;
+      weekDone += hist.done;
+    }
+    const weekPct = weekTotal>0 ? Math.round(weekDone/weekTotal*100) : 0;
+    const maxBar = Math.max(...weekData.map(d=>d.total),1);
+    
+    el.innerHTML = `
+      <div class="chart-wrap">
+        <div class="chart-title">Tasks Per Day — This Week</div>
+        <div class="bar-chart">
+          ${weekData.map((d,i)=>`
+            <div class="bar-col">
+              <div class="bar ${i===6?'highlight':''}" style="height:${Math.round(d.total/maxBar*100)}%"></div>
+              <div class="bar-label">${d.day.slice(0,1)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="report-card">
+        <div class="report-card-title">📊 Weekly Summary</div>
+        <div class="report-row"><span class="report-row-label">Total Tasks</span><span class="report-row-val">${weekTotal}</span></div>
+        <div class="report-row"><span class="report-row-label">Completed</span><span class="report-row-val positive">${weekDone}</span></div>
+        <div class="report-row"><span class="report-row-label">Missed</span><span class="report-row-val ${weekTotal-weekDone>0?'negative':'positive'}">${weekTotal-weekDone}</span></div>
+        <div class="report-row"><span class="report-row-label">Avg Completion</span><span class="report-row-val ${weekPct>=70?'positive':''}">${weekPct}%</span></div>
+        <div class="report-row"><span class="report-row-label">Best Day</span><span class="report-row-val positive">${weekData.reduce((a,b)=>b.done>a.done?b:a,weekData[0]).day}</span></div>
+      </div>
+      <div class="report-card">
+        <div class="report-card-title">📅 Day by Day</div>
+        ${weekData.map(d=>`
+          <div class="report-row">
+            <span class="report-row-label">${d.day}</span>
+            <span class="report-row-val">${d.done}/${d.total} <span style="color:var(--muted);font-size:11px">${d.total>0?Math.round(d.done/d.total*100)+'%':'-'}</span></span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else {
+    // Monthly
+    const monthData = [];
+    let mTotal=0, mDone=0;
+    for (let i=29;i>=0;i--) {
+      const d = new Date(today); d.setDate(today.getDate()-i);
+      const ds = d.toISOString().slice(0,10);
+      const hist = state.history[ds] || {total:0,done:0};
+      if (ds === todayStr()) {
+        const todayT = state.tasks.filter(t=>!t.date||t.date===ds);
+        hist.total = todayT.length;
+        hist.done = todayT.filter(t=>t.done).length;
+      }
+      monthData.push(hist);
+      mTotal += hist.total;
+      mDone += hist.done;
+    }
+    const mPct = mTotal>0 ? Math.round(mDone/mTotal*100) : 0;
+    const activeDays = monthData.filter(d=>d.total>0).length;
+    const perfectDays = monthData.filter(d=>d.total>0&&d.done===d.total).length;
+    const maxBar = Math.max(...monthData.map(d=>d.done),1);
+
+    el.innerHTML = `
+      <div class="chart-wrap">
+        <div class="chart-title">Completions — Last 30 Days</div>
+        <div class="bar-chart" style="gap:2px">
+          ${monthData.map((d,i)=>`
+            <div class="bar-col">
+              <div class="bar ${i===29?'highlight':''}" style="height:${Math.round(d.done/maxBar*100)}%"></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="report-card">
+        <div class="report-card-title">📈 Monthly Overview</div>
+        <div class="report-row"><span class="report-row-label">Total Tasks</span><span class="report-row-val">${mTotal}</span></div>
+        <div class="report-row"><span class="report-row-label">Completed</span><span class="report-row-val positive">${mDone}</span></div>
+        <div class="report-row"><span class="report-row-label">Completion Rate</span><span class="report-row-val ${mPct>=70?'positive':''}">${mPct}%</span></div>
+        <div class="report-row"><span class="report-row-label">Active Days</span><span class="report-row-val">${activeDays}/30</span></div>
+        <div class="report-row"><span class="report-row-label">Perfect Days</span><span class="report-row-val positive">🌟 ${perfectDays}</span></div>
+        <div class="report-row"><span class="report-row-label">Best Streak</span><span class="report-row-val positive">🔥 ${state.streak||0} days</span></div>
+      </div>
+    `;
+  }
+}
+
+// ─── REMINDERS ────────────────────────────────────────────────────────────────
+function renderReminders() {
+  const el = document.getElementById('reminderList');
+  if (state.reminders.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">⏰</div><div class="empty-text">No reminders yet.<br>Add one to stay on track!</div></div>`;
+    return;
+  }
+  el.innerHTML = state.reminders.map(r => `
+    <div class="task-item">
+      <div class="settings-icon s-purple">⏰</div>
+      <div class="task-info">
+        <div class="task-name">${r.text}</div>
+        <div class="task-meta">
+          <span class="task-time">${formatTime(r.time)} · ${r.repeat}</span>
+        </div>
+      </div>
+      <button class="task-delete" style="opacity:1" onclick="deleteReminder('${r.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </button>
+    </div>
+  `).join('');
+  
+  // Also update notif panel
+  renderNotifPanel();
+}
+
+function addReminder() {
+  const text = document.getElementById('remText').value.trim();
+  if (!text) { showToast('⚠️ Enter reminder text'); return; }
+  const rem = {
+    id: Date.now().toString(),
+    text,
+    time: document.getElementById('remTime').value,
+    repeat: document.getElementById('remRepeat').value
+  };
+  state.reminders.push(rem);
+  save();
+  closeModal('reminderModal');
+  renderReminders();
+  scheduleReminderNotification(rem);
+  showToast('⏰ Reminder set!');
+  document.getElementById('remText').value = '';
+}
+
+function deleteReminder(id) {
+  state.reminders = state.reminders.filter(r=>r.id!==id);
+  save();
+  renderReminders();
+  showToast('🗑️ Reminder deleted');
+}
+
+function renderNotifPanel() {
+  const el = document.getElementById('notifList');
+  const upcomingRems = state.reminders.slice(0,5);
+  if (upcomingRems.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No active reminders</div>';
+    return;
+  }
+  el.innerHTML = upcomingRems.map(r => `
+    <div class="notif-item">
+      <div class="notif-dot2" style="background:var(--accent)"></div>
+      <div>
+        <div style="font-size:14px;font-weight:500">${r.text}</div>
+        <div style="font-size:11px;color:var(--muted)">${formatTime(r.time)} · ${r.repeat}</div>
+      </div>
+    </div>
+  `).join('');
+  
+  document.getElementById('notifDot').style.display = upcomingRems.length>0 ? 'block' : 'none';
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
+function requestNotifPermission() {
+  if ('Notification' in window) {
+    if (Notification.permission === 'granted') {
+      notificationPermission = true;
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(p => {
+        notificationPermission = p === 'granted';
+        if (notificationPermission) showToast('🔔 Notifications enabled!');
+      });
+    }
+  }
+}
+
+function sendNotification(title, body) {
+  if (notificationPermission && document.hidden) {
+    new Notification(title, { body, icon: '✅', badge: '🔔' });
+  }
+}
+
+function scheduleTaskNotification(task) {
+  if (!task.time || !state.settings.notif) return;
+  const [h,m] = task.time.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now); target.setHours(h,m,0,0);
+  const diff = target - now;
+  if (diff > 0 && diff < 86400000) {
+    setTimeout(() => {
+      sendNotification(`⏰ Task Reminder`, `"${task.name}" is due now!`);
+      showToast(`⏰ Reminder: ${task.name}`);
+    }, diff);
+    // 15 min warning
+    if (diff > 900000) {
+      setTimeout(() => {
+        sendNotification('⏰ Upcoming Task', `"${task.name}" in 15 minutes`);
+      }, diff - 900000);
+    }
+  }
+}
+
+function scheduleReminderNotification(rem) {
+  if (!rem.time || !state.settings.notif) return;
+  const [h,m] = rem.time.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now); target.setHours(h,m,0,0);
+  let diff = target - now;
+  if (diff <= 0) diff += 86400000;
+  if (diff < 86400000) {
+    setTimeout(() => {
+      sendNotification('⏰ Reminder', rem.text);
+      showToast(`⏰ ${rem.text}`);
+    }, diff);
+  }
+}
+
+function scheduleSimulatedReminders() {
+  // Morning briefing simulation
+  if (state.settings.morning) {
+    const now = new Date();
+    const h = now.getHours();
+    // If it's close to 8am or simulate after 1min for demo
+    setTimeout(() => {
+      const tasks = state.tasks.filter(t => !t.done);
+      if (tasks.length > 0) {
+        showToast(`🌅 Morning! You have ${tasks.length} tasks today`);
+        sendNotification('🌅 Good Morning!', `You have ${tasks.length} tasks planned for today`);
+      }
+    }, 5000); // demo: show after 5s
+  }
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function switchTab(tab, idx) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('fabBtn').style.display = tab==='today'||tab==='reminders' ? 'flex' : 'none';
+  document.getElementById('fabBtn').onclick = tab==='reminders' ? openReminderModal : openAddModal;
+  updateTabIndicator(idx);
+  document.getElementById('mainScroll').scrollTop = 0;
+  if (tab==='reports') renderReport();
+}
+
+function updateTabIndicator(idx) {
+  document.getElementById('tabIndicator').style.left = (idx*25)+'%';
+}
+
+function openAddModal() { document.getElementById('addModal').classList.add('open'); }
+function openReminderModal() { document.getElementById('reminderModal').classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.getElementById('addModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('addModal');
+});
+document.getElementById('reminderModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal('reminderModal');
+});
+
+function selectCat(el) {
+  document.querySelectorAll('#catSelect .tag-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCat = el.dataset.cat;
+}
+
+function toggleNotifPanel() {
+  notifPanelOpen = !notifPanelOpen;
+  document.getElementById('notifPanel').classList.toggle('open', notifPanelOpen);
+}
+
+function toggleSetting(key) {
+  state.settings[key] = !state.settings[key];
+  document.getElementById('toggle-'+key).classList.toggle('on', state.settings[key]);
+  save();
+  showToast(state.settings[key] ? '🔔 Enabled' : '🔕 Disabled');
+}
+
+let toastTimeout;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Seed demo data if empty
+function seedDemo() {
+  if (state.tasks.length === 0) {
+    const demo = [
+      {id:'d1',name:'Morning workout',time:'07:00',cat:'health',priority:'high',done:true,date:todayStr()},
+      {id:'d2',name:'Team standup meeting',time:'09:30',cat:'work',priority:'high',done:false,date:todayStr()},
+      {id:'d3',name:'Review Q3 report',time:'11:00',cat:'work',priority:'med',done:false,date:todayStr()},
+      {id:'d4',name:'Lunch break walk',time:'13:00',cat:'health',priority:'low',done:false,date:todayStr()},
+      {id:'d5',name:'Study TypeScript',time:'15:00',cat:'study',priority:'med',done:false,date:todayStr()},
+      {id:'d6',name:'Call family',time:'19:00',cat:'personal',priority:'high',done:false,date:todayStr()},
+    ];
+    state.tasks = demo;
+    state.reminders = [
+      {id:'r1',text:'Drink water 💧',time:'10:00',repeat:'daily'},
+      {id:'r2',text:'Take vitamins',time:'08:30',repeat:'daily'},
+    ];
+    // Seed some history
+    for (let i=1;i<=6;i++) {
+      const d = new Date(); d.setDate(d.getDate()-i);
+      const ds = d.toISOString().slice(0,10);
+      const total = Math.floor(Math.random()*6)+2;
+      const done = Math.floor(Math.random()*total)+1;
+      state.history[ds] = {total, done};
+    }
+    state.streak = 3;
+    save();
+  }
+}
+
+seedDemo();
+init();
+</script>
+</body>
+</html>
